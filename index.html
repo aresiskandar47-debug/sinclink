@@ -1,93 +1,193 @@
 
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SINCLINK - URL Shortener</title>
-<style>
-*{box-sizing:border-box}
-body{
- margin:0;background:#0b1020;color:white;
- font-family:Arial,sans-serif;padding:25px 16px;
-}
-.container{max-width:550px;margin:auto}
-header{text-align:center;padding:35px 0}
-.logo{font-size:34px;font-weight:bold;color:#65a7ff}
-header p{color:#aab4ca}
-.card{
- background:#151e33;border:1px solid #293653;
- padding:22px;border-radius:17px;margin-bottom:20px;
-}
-h2{font-size:20px;margin-top:0}
-input{
- width:100%;padding:15px;border-radius:9px;
- border:1px solid #394967;background:#0b1428;
- color:white;font-size:15px;margin:12px 0;
-}
-button{
- width:100%;padding:15px;border:0;
- border-radius:9px;background:#347df2;
- color:white;font-weight:bold;font-size:15px;
-}
-button:active{opacity:.8}
-.result{margin-top:15px;overflow-wrap:anywhere}
-small{color:#aab4ca}
-footer{text-align:center;color:#8290a9;margin:30px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SINCLINK - URL Shortener</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #0b1020;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 30px;
+      background: #151d32;
+      border: 1px solid #293550;
+      border-radius: 18px;
+    }
+    h1 { text-align: center; color: #65e5c0; }
+    p { text-align: center; color: #aab5cc; }
+    input, button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border-radius: 9px;
+      font-size: 15px;
+    }
+    input {
+      background: #0b1020;
+      color: white;
+      border: 1px solid #35425e;
+    }
+    button {
+      border: 0;
+      background: #65e5c0;
+      color: #07130f;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #result {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      background: #0b1020;
+      overflow-wrap: anywhere;
+    }
+    #message {
+      margin-top: 15px;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
+
 <div class="container">
-<header>
- <div class="logo">🔗 SINCLINK</div>
- <p>One Link. Endless Possibilities.</p>
-</header>
+  <h1>SINCLINK</h1>
+  <p>Pendekkan link dengan mudah dan cepat.</p>
 
-<div class="card">
- <h2>🔗 Shorten Your Link</h2>
- <small>Masukkan URL panjang yang ingin dipendekkan.</small>
- <input id="longUrl" type="url"
- placeholder="https://contoh.com/link-panjang">
- <button onclick="shorten()">SHORTEN LINK</button>
- <div class="result" id="linkResult"></div>
+  <input id="urlInput" type="url"
+    placeholder="Tempel URL panjang di sini">
+
+  <button id="shortenBtn" onclick="shortenUrl()">
+    SHORTEN LINK
+  </button>
+
+  <div id="message"></div>
+
+  <div id="result">
+    <p>Link pendek kamu:</p>
+    <div id="shortUrl"></div>
+    <button onclick="copyLink()">SALIN LINK</button>
+  </div>
 </div>
 
-<div class="card">
- <h2>📁 Upload Your File</h2>
- <small>Pilih file yang ingin dibagikan.</small>
- <input type="file" id="fileInput">
- <div id="fileInfo"></div>
- <button onclick="uploadInfo()">PILIH FILE</button>
-</div>
-
-<footer>
-SINCLINK © 2026<br>
-<small>Simple Link Sharing Platform</small>
-</footer>
-</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-function shorten(){
- const input=document.getElementById('longUrl');
- const result=document.getElementById('linkResult');
- try{
-  const url=new URL(input.value);
-  if(!['http:','https:'].includes(url.protocol)) throw 0;
-  result.innerHTML='<small>URL valid! Backend shortener akan disambungkan pada tahap berikutnya.</small>';
- }catch(e){
-  result.innerHTML='<small>Masukkan URL yang valid.</small>';
- }
+const SUPABASE_URL = "https://tnjelffyqzobrduzoaik.supabase.co";
+const SUPABASE_KEY = "sb_publishable_2wVoUveP9gCAseJB8DLF-w_YcbdZFLp";
+
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+const message = document.getElementById("message");
+
+// Membuka link asli saat link pendek dikunjungi
+async function checkRedirect() {
+  const code = new URLSearchParams(location.search).get("s");
+  if (!code) return;
+
+  document.querySelector(".container").innerHTML =
+    "<h1>SINCLINK</h1><p>Mengalihkan link...</p>";
+
+  const { data, error } = await db
+    .from("links")
+    .select("original_url")
+    .eq("short_code", code)
+    .maybeSingle();
+
+  if (error || !data) {
+    document.querySelector(".container").innerHTML =
+      "<h1>Link tidak ditemukan</h1><p>Link mungkin salah atau sudah tidak tersedia.</p>";
+    return;
+  }
+
+  location.replace(data.original_url);
 }
-function uploadInfo(){
- const file=document.getElementById('fileInput').files[0];
- const info=document.getElementById('fileInfo');
- if(!file){
-  info.innerHTML='<small>Pilih file terlebih dahulu.</small>';
-  return;
- }
- info.innerHTML='<p>'+file.name+'</p><small>Ukuran: '+(file.size/1024/1024).toFixed(2)+' MB. Penyimpanan akan disambungkan pada tahap berikutnya.</small>';
+
+// Membuat link pendek
+async function shortenUrl() {
+  const input = document.getElementById("urlInput");
+  const btn = document.getElementById("shortenBtn");
+  const url = input.value.trim();
+
+  document.getElementById("result").style.display = "none";
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+  } catch {
+    message.textContent = "Masukkan URL yang valid (http atau https).";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "MEMBUAT LINK...";
+  message.textContent = "";
+
+  try {
+    let saved = false;
+    let code = "";
+
+    for (let i = 0; i < 5; i++) {
+      code = Math.random().toString(36).substring(2, 9);
+
+      const { error } = await db.from("links").insert({
+        short_code: code,
+        original_url: parsed.href
+      });
+
+      if (!error) {
+        saved = true;
+        break;
+      }
+
+      if (error.code !== "23505") {
+        throw error;
+      }
+    }
+
+    if (!saved) throw new Error("Gagal membuat kode unik.");
+
+    const shortLink =
+      location.origin + location.pathname + "?s=" + code;
+
+    document.getElementById("shortUrl").textContent = shortLink;
+    document.getElementById("result").style.display = "block";
+    message.textContent = "Link berhasil dibuat!";
+  } catch (error) {
+    console.error(error);
+    message.textContent = "Gagal membuat link. Periksa koneksi atau pengaturan Supabase.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "SHORTEN LINK";
+  }
 }
+
+function copyLink() {
+  const link = document.getElementById("shortUrl").textContent;
+  navigator.clipboard.writeText(link)
+    .then(() => message.textContent = "Link berhasil disalin!")
+    .catch(() => message.textContent = "Gagal menyalin link.");
+}
+
+checkRedirect();
 </script>
+
 </body>
 </html>
